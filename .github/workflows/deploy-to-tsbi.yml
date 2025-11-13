@@ -82,8 +82,6 @@ jobs:
 
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v1.0.0
-        env:
-          SHORT_SHA: ${{ env.SHORT_SHA }}
         with:
           host: ${{ secrets.TSBI_HOST }}
           username: ${{ secrets.TSBI_USER }}
@@ -96,7 +94,7 @@ jobs:
             echo "   Site ID: ${{ env.SITE_ID }}"
             echo "   Environment: ${{ env.ENVIRONMENT }}"
             echo "   Domain: ${{ env.DOMAIN }}"
-            echo "   Image Tag: ${SHORT_SHA}"
+            echo "   Image Tag: $(echo '${{ github.sha }}' | cut -c1-8)"
             echo "   Branch: ${{ github.ref_name }}"
             echo ""
 
@@ -106,7 +104,8 @@ jobs:
             export SITE_ID="${{ env.SITE_ID }}"
             export ENVIRONMENT="${{ env.ENVIRONMENT }}"
             export DOMAIN="${{ env.DOMAIN }}"
-            export IMAGE_TAG="${SHORT_SHA}"
+            # Compute short SHA from commit SHA
+            export IMAGE_TAG=$(echo "${{ github.sha }}" | cut -c1-8)
             export BRANCH="${{ github.ref_name }}"
             export COMMIT="${{ github.sha }}"
 
