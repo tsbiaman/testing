@@ -172,11 +172,11 @@ jobs:
 
             # Deploy backend
             echo "🚀 Deploying backend service..."
-            ./scripts/deploy-from-registry.sh ${SITE_ID}-backend ${ENVIRONMENT} api.${DOMAIN} ${REGISTRY}/${IMAGE_NAME}-backend:${IMAGE_TAG} --branch ${BRANCH} --commit ${COMMIT}
+            ./scripts/deploy-from-registry.sh myapp-backend ${ENVIRONMENT} api.${DOMAIN} ${REGISTRY}/${IMAGE_NAME}-backend:${IMAGE_TAG} --branch ${BRANCH} --commit ${COMMIT}
             
             # Deploy frontend
             echo "🚀 Deploying frontend service..."
-            ./scripts/deploy-from-registry.sh ${SITE_ID}-frontend ${ENVIRONMENT} ${DOMAIN} ${REGISTRY}/${IMAGE_NAME}-frontend:${IMAGE_TAG} --branch ${BRANCH} --commit ${COMMIT}
+            ./scripts/deploy-from-registry.sh myapp-frontend ${ENVIRONMENT} ${DOMAIN} ${REGISTRY}/${IMAGE_NAME}-frontend:${IMAGE_TAG} --branch ${BRANCH} --commit ${COMMIT}
 
             # Check deployment status
             if [ $? -eq 0 ]; then

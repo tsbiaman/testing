@@ -1,0 +1,25 @@
+site:
+  id: testing-backend
+  name: "My App Backend"
+  github_repo: "https://github.com/tsbiaman/testing"
+  build:
+    context: "."
+    dockerfile: "backend/Dockerfile"
+  defaults:
+    branch: main
+    domain_suffix: "tsbi.fun"
+    port: 5000
+    replicas: 1
+    resources:
+      backend:
+        cpus: 0.5
+        memory: 512M
+    database: true
+    redis: true
+  environments:
+    production:
+      enabled: true
+      branch: main
+      domain: "api.testing.tsbi.fun"
+      database: true
+      redis: true
