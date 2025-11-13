@@ -1,7 +1,7 @@
 site:
-  id: myapp
+  id: testing
   name: "My App"
-  github_repo: "https://github.com/yourusername/myapp"  # Replace with your GitHub repo URL
+  github_repo: "https://github.com/tsbiaman/testing"  # Replace with your GitHub repo URL
   github_token_secret: "github-token"  # Optional: Secret file in secrets/ for private repos
   build:
     context: "."  # Root of repo
@@ -21,6 +21,6 @@ site:
     production:
       enabled: true
       branch: main
-      domain: "myapp.tsbi.fun"
+      domain: "testing.tsbi.fun"
       database: true
       redis: true
