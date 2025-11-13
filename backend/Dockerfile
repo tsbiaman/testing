@@ -1,4 +1,4 @@
-# Production Dockerfile for Docker Swarm
+# Backend Dockerfile
 FROM node:20-alpine
 
 # Install dumb-init for proper signal handling
@@ -7,20 +7,14 @@ RUN apk add --no-cache dumb-init
 # Create app directory
 WORKDIR /app
 
-# Copy package files for better caching
-COPY backend/package*.json ./backend/
-COPY frontend/package*.json ./frontend/
+# Copy package files
+COPY package*.json ./
 
 # Install dependencies
-RUN cd backend && npm ci --only=production && \
-    cd ../frontend && npm ci
+RUN npm ci --only=production
 
 # Copy source code
-COPY backend/ ./backend/
-COPY frontend/ ./frontend/
-
-# Build frontend
-RUN cd frontend && npm run build
+COPY . .
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
@@ -39,6 +33,6 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     process.exit(res.statusCode === 200 ? 0 : 1) \
   }).on('error', () => process.exit(1))"
 
-# Start with dumb-init for proper signal handling
+# Start with dumb-init
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "backend/index.js"]
+CMD ["node", "index.js"]
