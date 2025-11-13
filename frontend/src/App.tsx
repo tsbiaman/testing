@@ -27,6 +27,10 @@ const resolveApiBase = () => {
   }
 
   if (typeof window !== 'undefined') {
+    // In production, assume backend is at api subdomain
+    if (window.location.hostname !== 'localhost') {
+      return `https://api.${window.location.hostname}`
+    }
     return window.location.origin
   }
 
