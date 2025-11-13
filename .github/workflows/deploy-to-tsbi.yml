@@ -41,16 +41,21 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t $REGISTRY/$IMAGE_NAME:${{ github.sha }} .
-          docker tag $REGISTRY/$IMAGE_NAME:${{ github.sha }} $REGISTRY/$IMAGE_NAME:latest
+          # Create a short, DNS-compliant tag from the commit SHA
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-8)
+          echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_ENV
+          docker build -t $REGISTRY/$IMAGE_NAME:$SHORT_SHA .
+          docker build -t $REGISTRY/$IMAGE_NAME:latest .
+          docker tag $REGISTRY/$IMAGE_NAME:$SHORT_SHA $REGISTRY/$IMAGE_NAME:${{ github.sha }}
 
       - name: Login to private registry
         run: echo ${{ secrets.REGISTRY_PASSWORD }} | docker login $REGISTRY -u ${{ secrets.REGISTRY_USER }} --password-stdin
 
       - name: Push image to registry
         run: |
-          docker push $REGISTRY/$IMAGE_NAME:${{ github.sha }}
+          docker push $REGISTRY/$IMAGE_NAME:$SHORT_SHA
           docker push $REGISTRY/$IMAGE_NAME:latest
+          docker push $REGISTRY/$IMAGE_NAME:${{ github.sha }}
 
       - name: Add VPS to known hosts
         run: |
@@ -77,6 +82,8 @@ jobs:
 
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v1.0.0
+        env:
+          SHORT_SHA: ${{ env.SHORT_SHA }}
         with:
           host: ${{ secrets.TSBI_HOST }}
           username: ${{ secrets.TSBI_USER }}
@@ -89,7 +96,7 @@ jobs:
             echo "   Site ID: ${{ env.SITE_ID }}"
             echo "   Environment: ${{ env.ENVIRONMENT }}"
             echo "   Domain: ${{ env.DOMAIN }}"
-            echo "   Image Tag: ${{ github.sha }}"
+            echo "   Image Tag: ${SHORT_SHA}"
             echo "   Branch: ${{ github.ref_name }}"
             echo ""
 
@@ -99,7 +106,7 @@ jobs:
             export SITE_ID="${{ env.SITE_ID }}"
             export ENVIRONMENT="${{ env.ENVIRONMENT }}"
             export DOMAIN="${{ env.DOMAIN }}"
-            export IMAGE_TAG="${{ github.sha }}"
+            export IMAGE_TAG="${SHORT_SHA}"
             export BRANCH="${{ github.ref_name }}"
             export COMMIT="${{ github.sha }}"
 
