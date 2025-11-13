@@ -52,6 +52,11 @@ jobs:
           docker push $REGISTRY/$IMAGE_NAME:${{ github.sha }}
           docker push $REGISTRY/$IMAGE_NAME:latest
 
+      - name: Add VPS to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.TSBI_HOST }} >> ~/.ssh/known_hosts
+
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v1.0.0
         with:
