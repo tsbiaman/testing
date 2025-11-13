@@ -1,0 +1,67 @@
+name: Build, Push & Deploy to TSBI
+on:
+  push:
+    branches: [main, dev, staging]  # Add other branches as needed
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: registry.tsbi.fun
+  IMAGE_NAME: ${{ github.event.repository.name }}
+  SITE_ID: myapp  # Replace with your site ID from sites/myapp.yml
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: actions/setup-buildx-action@v3
+
+      - name: Determine environment and domain
+        id: env
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          REPO_NAME="${{ github.event.repository.name }}"
+          if [[ "$BRANCH" == "main" ]]; then
+            echo "ENVIRONMENT=production" >> $GITHUB_ENV
+            echo "DOMAIN=${REPO_NAME}.tsbi.fun" >> $GITHUB_ENV
+          elif [[ "$BRANCH" == "dev" ]]; then
+            echo "ENVIRONMENT=development" >> $GITHUB_ENV
+            echo "DOMAIN=dev-${REPO_NAME}.tsbi.fun" >> $GITHUB_ENV
+          elif [[ "$BRANCH" == "staging" ]]; then
+            echo "ENVIRONMENT=staging" >> $GITHUB_ENV
+            echo "DOMAIN=staging-${REPO_NAME}.tsbi.fun" >> $GITHUB_ENV
+          else
+            echo "ENVIRONMENT=develop" >> $GITHUB_ENV
+            echo "DOMAIN=develop-${REPO_NAME}.tsbi.fun" >> $GITHUB_ENV
+          fi
+
+      - name: Build Docker image
+        run: |
+          docker build -t $REGISTRY/$IMAGE_NAME:${{ github.sha }} .
+          docker tag $REGISTRY/$IMAGE_NAME:${{ github.sha }} $REGISTRY/$IMAGE_NAME:latest
+
+      - name: Login to private registry
+        run: echo ${{ secrets.REGISTRY_PASSWORD }} | docker login $REGISTRY -u ${{ secrets.REGISTRY_USER }} --password-stdin
+
+      - name: Push image to registry
+        run: |
+          docker push $REGISTRY/$IMAGE_NAME:${{ github.sha }}
+          docker push $REGISTRY/$IMAGE_NAME:latest
+
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.TSBI_HOST }}
+          username: ${{ secrets.TSBI_USER }}
+          key: ${{ secrets.TSBI_SSH_KEY }}
+          script: |
+            cd /data/ecosystem
+            ./scripts/deploy-from-registry.sh ${{ env.SITE_ID }} ${{ env.ENVIRONMENT }} ${{ env.DOMAIN }} $REGISTRY/$IMAGE_NAME:${{ github.sha }} --branch ${{ github.ref_name }} --commit ${{ github.sha }}
+
+      - name: Notify on failure (optional)
+        if: failure()
+        run: echo "Deployment failed. Check logs."

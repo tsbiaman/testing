@@ -1,0 +1,26 @@
+site:
+  id: myapp
+  name: "My App"
+  github_repo: "https://github.com/yourusername/myapp"  # Replace with your GitHub repo URL
+  github_token_secret: "github-token"  # Optional: Secret file in secrets/ for private repos
+  build:
+    context: "."  # Root of repo
+    dockerfile: "Dockerfile"  # Assumes a multi-stage Dockerfile for backend/frontend
+  defaults:
+    branch: main
+    domain_suffix: "tsbi.fun"
+    port: 3000  # Backend port; adjust for frontend if needed
+    replicas: 1
+    resources:
+      backend:
+        cpus: 0.5
+        memory: 512M
+    database: true  # Enable if backend needs PostgreSQL
+    redis: true     # Enable if needed
+  environments:
+    production:
+      enabled: true
+      branch: main
+      domain: "myapp.tsbi.fun"
+      database: true
+      redis: true
