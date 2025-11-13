@@ -39,23 +39,36 @@ jobs:
             echo "DOMAIN=develop-${REPO_NAME}.tsbi.fun" >> $GITHUB_ENV
           fi
 
-      - name: Build Docker image
+      - name: Build Docker images
         run: |
           # Create a short, DNS-compliant tag from the commit SHA
           SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-8)
           echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_ENV
-          docker build -t $REGISTRY/$IMAGE_NAME:$SHORT_SHA .
-          docker build -t $REGISTRY/$IMAGE_NAME:latest .
-          docker tag $REGISTRY/$IMAGE_NAME:$SHORT_SHA $REGISTRY/$IMAGE_NAME:${{ github.sha }}
+          
+          # Build backend image
+          docker build -f backend/Dockerfile -t $REGISTRY/$IMAGE_NAME-backend:$SHORT_SHA ./backend
+          docker build -f backend/Dockerfile -t $REGISTRY/$IMAGE_NAME-backend:latest ./backend
+          docker tag $REGISTRY/$IMAGE_NAME-backend:$SHORT_SHA $REGISTRY/$IMAGE_NAME-backend:${{ github.sha }}
+          
+          # Build frontend image
+          docker build -f frontend/Dockerfile -t $REGISTRY/$IMAGE_NAME-frontend:$SHORT_SHA ./frontend
+          docker build -f frontend/Dockerfile -t $REGISTRY/$IMAGE_NAME-frontend:latest ./frontend
+          docker tag $REGISTRY/$IMAGE_NAME-frontend:$SHORT_SHA $REGISTRY/$IMAGE_NAME-frontend:${{ github.sha }}
 
       - name: Login to private registry
         run: echo ${{ secrets.REGISTRY_PASSWORD }} | docker login $REGISTRY -u ${{ secrets.REGISTRY_USER }} --password-stdin
 
-      - name: Push image to registry
+      - name: Push images to registry
         run: |
-          docker push $REGISTRY/$IMAGE_NAME:$SHORT_SHA
-          docker push $REGISTRY/$IMAGE_NAME:latest
-          docker push $REGISTRY/$IMAGE_NAME:${{ github.sha }}
+          # Push backend images
+          docker push $REGISTRY/$IMAGE_NAME-backend:$SHORT_SHA
+          docker push $REGISTRY/$IMAGE_NAME-backend:latest
+          docker push $REGISTRY/$IMAGE_NAME-backend:${{ github.sha }}
+          
+          # Push frontend images
+          docker push $REGISTRY/$IMAGE_NAME-frontend:$SHORT_SHA
+          docker push $REGISTRY/$IMAGE_NAME-frontend:latest
+          docker push $REGISTRY/$IMAGE_NAME-frontend:${{ github.sha }}
 
       - name: Add VPS to known hosts
         run: |
@@ -157,8 +170,13 @@ jobs:
             echo "🚀 Deploying image: ${FULL_IMAGE_REF}"
             echo "📍 Command: ./scripts/deploy-from-registry.sh ${SITE_ID} ${ENVIRONMENT} ${DOMAIN} ${FULL_IMAGE_REF} --branch ${BRANCH} --commit ${COMMIT}"
 
-            # Run the deployment
-            ./scripts/deploy-from-registry.sh ${SITE_ID} ${ENVIRONMENT} ${DOMAIN} ${FULL_IMAGE_REF} --branch ${BRANCH} --commit ${COMMIT}
+            # Deploy backend
+            echo "🚀 Deploying backend service..."
+            ./scripts/deploy-from-registry.sh ${SITE_ID}-backend ${ENVIRONMENT} api.${DOMAIN} ${REGISTRY}/${IMAGE_NAME}-backend:${IMAGE_TAG} --branch ${BRANCH} --commit ${COMMIT}
+            
+            # Deploy frontend
+            echo "🚀 Deploying frontend service..."
+            ./scripts/deploy-from-registry.sh ${SITE_ID}-frontend ${ENVIRONMENT} ${DOMAIN} ${REGISTRY}/${IMAGE_NAME}-frontend:${IMAGE_TAG} --branch ${BRANCH} --commit ${COMMIT}
 
             # Check deployment status
             if [ $? -eq 0 ]; then
