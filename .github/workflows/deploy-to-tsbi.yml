@@ -57,6 +57,24 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.TSBI_HOST }} >> ~/.ssh/known_hosts
 
+      - name: Debug SSH Key (Optional)
+        run: |
+          echo "Checking SSH key configuration..."
+          if [ -z "${{ secrets.TSBI_SSH_KEY }}" ]; then
+            echo "❌ TSBI_SSH_KEY secret is not set!"
+            echo "Please add TSBI_SSH_KEY to your GitHub repository secrets."
+            exit 1
+          else
+            echo "✅ TSBI_SSH_KEY secret is set"
+            # Check if it starts with BEGIN (basic format check)
+            if echo "${{ secrets.TSBI_SSH_KEY }}" | grep -q "BEGIN"; then
+              echo "✅ SSH key appears to be properly formatted"
+            else
+              echo "⚠️  SSH key format may be incorrect"
+              echo "Make sure to copy the entire private key including BEGIN and END lines"
+            fi
+          fi
+
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -64,8 +82,75 @@ jobs:
           username: ${{ secrets.TSBI_USER }}
           key: ${{ secrets.TSBI_SSH_KEY }}
           script: |
+            # Debug: Show environment variables
+            echo "🔍 Deployment Configuration:"
+            echo "   Registry: ${{ env.REGISTRY }}"
+            echo "   Image Name: ${{ env.IMAGE_NAME }}"
+            echo "   Site ID: ${{ env.SITE_ID }}"
+            echo "   Environment: ${{ env.ENVIRONMENT }}"
+            echo "   Domain: ${{ env.DOMAIN }}"
+            echo "   Image Tag: ${{ github.sha }}"
+            echo "   Branch: ${{ github.ref_name }}"
+            echo ""
+
+            # Set environment variables explicitly
+            export REGISTRY="${{ env.REGISTRY }}"
+            export IMAGE_NAME="${{ env.IMAGE_NAME }}"
+            export SITE_ID="${{ env.SITE_ID }}"
+            export ENVIRONMENT="${{ env.ENVIRONMENT }}"
+            export DOMAIN="${{ env.DOMAIN }}"
+            export IMAGE_TAG="${{ github.sha }}"
+            export BRANCH="${{ github.ref_name }}"
+            export COMMIT="${{ github.sha }}"
+
+            # Create site configuration if it doesn't exist
+            SITE_CONFIG="/data/ecosystem/sites/${SITE_ID}.yml"
+            if [ ! -f "$SITE_CONFIG" ]; then
+              echo "📝 Creating site configuration for ${SITE_ID}..."
+              cat > "$SITE_CONFIG" << EOF
+            id: ${SITE_ID}
+            domain: ${DOMAIN}
+            environment: ${ENVIRONMENT}
+            image: ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
+            ports:
+              - "80:5000"
+            environment_variables:
+              - NODE_ENV=${ENVIRONMENT}
+              - PORT=5000
+            health_check:
+              path: /api/health
+              interval: 30s
+              timeout: 10s
+              retries: 3
+            restart_policy: unless-stopped
+            EOF
+              echo "✅ Site configuration created at ${SITE_CONFIG}"
+              echo "📋 Configuration content:"
+              cat "$SITE_CONFIG"
+            else
+              echo "ℹ️  Site configuration already exists at ${SITE_CONFIG}"
+              echo "🔄 Updating image reference..."
+              # Update the image reference in existing config
+              sed -i "s|image:.*|image: ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}|" "$SITE_CONFIG"
+            fi
+
+            # Deploy using the registry script
             cd /data/ecosystem
-            ./scripts/deploy-from-registry.sh ${{ env.SITE_ID }} ${{ env.ENVIRONMENT }} ${{ env.DOMAIN }} $REGISTRY/$IMAGE_NAME:${{ github.sha }} --branch ${{ github.ref_name }} --commit ${{ github.sha }}
+            FULL_IMAGE_REF="${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+            echo "🚀 Deploying image: ${FULL_IMAGE_REF}"
+            echo "📍 Command: ./scripts/deploy-from-registry.sh ${SITE_ID} ${ENVIRONMENT} ${DOMAIN} ${FULL_IMAGE_REF} --branch ${BRANCH} --commit ${COMMIT}"
+
+            # Run the deployment
+            ./scripts/deploy-from-registry.sh ${SITE_ID} ${ENVIRONMENT} ${DOMAIN} ${FULL_IMAGE_REF} --branch ${BRANCH} --commit ${COMMIT}
+
+            # Check deployment status
+            if [ $? -eq 0 ]; then
+              echo "✅ Deployment completed successfully!"
+              echo "🌐 Your app should be available at: https://${DOMAIN}"
+            else
+              echo "❌ Deployment failed!"
+              exit 1
+            fi
 
       - name: Notify on failure (optional)
         if: failure()
