@@ -24,3 +24,6 @@ site:
       domain: "testing.tsbi.fun"
       database: true
       redis: true
+      health_check:
+        path: "/health"
+        scheme: "https"

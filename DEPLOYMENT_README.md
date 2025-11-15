@@ -174,6 +174,23 @@ If deployment fails:
 3. Test SSH connection manually
 4. Check VPS resources and Docker status
 
+## 🗄️ Database Infrastructure
+
+The TSBI ecosystem includes a complete database infrastructure with separate management tools:
+
+### Database Management Tools
+- **PostgreSQL**: pgAdmin 4 at `https://pgadmin.tsbi.fun`
+- **MongoDB**: Mongo Express at `https://mongo.tsbi.fun`
+- **Redis**: RedisInsight at `https://redis.tsbi.fun`
+
+### Infrastructure Details
+- Docker Swarm orchestration
+- Traefik reverse proxy with automatic SSL
+- Persistent data volumes
+- Comprehensive monitoring (Prometheus + Grafana)
+
+See `/VPS/data/ecosystem/infrastructure/docs/database-setup.md` for complete documentation.
+
 ---
 
 **🎉 Your app deploys automatically on every push to main!**
